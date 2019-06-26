@@ -160,6 +160,7 @@ public abstract class AbstractConfig implements Serializable {
         for (Method method : methods) {
             try {
                 String name = method.getName();
+                // 方法为获取基本类型，public 的 getting 方法
                 if (MethodUtils.isGetter(method)) {
                     Parameter parameter = method.getAnnotation(Parameter.class);
                     if (method.getReturnType() == Object.class || parameter != null && parameter.excluded()) {
@@ -169,11 +170,14 @@ public abstract class AbstractConfig implements Serializable {
                     if (parameter != null && parameter.key().length() > 0) {
                         key = parameter.key();
                     } else {
+                        // 获取属性名
                         key = calculatePropertyFromGetter(name);
                     }
+                    // 获取属性值
                     Object value = method.invoke(config);
                     String str = String.valueOf(value).trim();
                     if (value != null && str.length() > 0) {
+                        // 转义
                         if (parameter != null && parameter.escaped()) {
                             str = URL.encode(str);
                         }

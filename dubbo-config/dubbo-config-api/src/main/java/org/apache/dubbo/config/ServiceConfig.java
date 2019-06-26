@@ -365,16 +365,26 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         return getProtocols().size() == 1 && LOCAL_PROTOCOL.equalsIgnoreCase(getProtocols().get(0).getName());
     }
 
+    /**
+     * 进一步初始化 ServiceConfig 对象。
+     * 校验 ServiceConfig 对象的配置项。
+     * 使用 ServiceConfig 对象，生成 Dubbo URL 对象数组。
+     * 使用 Dubbo URL 对象，暴露服务。
+     */
     public synchronized void export() {
+        // 校验 & 进一步更新配置
         checkAndUpdateSubConfigs();
 
+        // 不暴露服务
         if (!shouldExport()) {
             return;
         }
 
+        // 需要延迟
         if (shouldDelay()) {
             DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
+            // export
             doExport();
         }
     }
@@ -401,6 +411,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     }
 
     protected synchronized void doExport() {
+        // 检查是否可以暴露
         if (unexported) {
             throw new IllegalStateException("The service " + interfaceClass.getName() + " has already unexported!");
         }
@@ -408,7 +419,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             return;
         }
         exported = true;
-
+        // path 为空 使用接口名
         if (StringUtils.isEmpty(path)) {
             path = interfaceName;
         }
@@ -451,6 +462,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private void doExportUrls() {
         List<URL> registryURLs = loadRegistries(true);
         for (ProtocolConfig protocolConfig : protocols) {
+            // 拼接URL
             String pathKey = URL.buildKey(getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), group, version);
             ProviderModel providerModel = new ProviderModel(pathKey, ref, interfaceClass);
             ApplicationModel.initProviderModel(pathKey, providerModel);

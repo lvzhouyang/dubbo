@@ -20,11 +20,7 @@ import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.Version;
 import org.apache.dubbo.common.bytecode.Wrapper;
 import org.apache.dubbo.common.extension.ExtensionLoader;
-import org.apache.dubbo.common.utils.ClassUtils;
-import org.apache.dubbo.common.utils.CollectionUtils;
-import org.apache.dubbo.common.utils.ConfigUtils;
-import org.apache.dubbo.common.utils.NetUtils;
-import org.apache.dubbo.common.utils.StringUtils;
+import org.apache.dubbo.common.utils.*;
 import org.apache.dubbo.config.annotation.Reference;
 import org.apache.dubbo.config.context.ConfigManager;
 import org.apache.dubbo.config.support.Parameter;
@@ -47,36 +43,21 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
-import static org.apache.dubbo.common.constants.CommonConstants.ANY_VALUE;
-import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SEPARATOR;
-import static org.apache.dubbo.common.constants.CommonConstants.CONSUMER_SIDE;
-import static org.apache.dubbo.common.constants.CommonConstants.DUBBO;
-import static org.apache.dubbo.common.constants.CommonConstants.INTERFACE_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.LOCALHOST_VALUE;
-import static org.apache.dubbo.common.constants.CommonConstants.METHODS_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.REVISION_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.SEMICOLON_SPLIT_PATTERN;
-import static org.apache.dubbo.common.constants.CommonConstants.SIDE_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.CLUSTER_KEY;
-import static org.apache.dubbo.config.Constants.DUBBO_IP_TO_REGISTRY;
-import static org.apache.dubbo.rpc.cluster.Constants.REFER_KEY;
-import static org.apache.dubbo.registry.Constants.REGISTER_IP_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.MONITOR_KEY;
-import static org.apache.dubbo.registry.Constants.CONSUMER_PROTOCOL;
+import static org.apache.dubbo.common.constants.CommonConstants.*;
 import static org.apache.dubbo.common.constants.RegistryConstants.REGISTRY_PROTOCOL;
-import static org.apache.dubbo.rpc.Constants.LOCAL_PROTOCOL;
 import static org.apache.dubbo.common.utils.NetUtils.isInvalidLocalHost;
+import static org.apache.dubbo.config.Constants.DUBBO_IP_TO_REGISTRY;
+import static org.apache.dubbo.registry.Constants.CONSUMER_PROTOCOL;
+import static org.apache.dubbo.registry.Constants.REGISTER_IP_KEY;
+import static org.apache.dubbo.rpc.Constants.LOCAL_PROTOCOL;
+import static org.apache.dubbo.rpc.cluster.Constants.REFER_KEY;
 
 /**
  * ReferenceConfig
+ * 服务消费者引用服务配置类
+ * 属性参考：http://dubbo.apache.org/zh-cn/docs/user/references/xml/dubbo-consumer.html
  *
  * @export
  */
@@ -240,6 +221,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         checkMetadataReport();
     }
 
+    /**
+     * 1.进一步初始化 ReferenceConfig 对象。
+     * 2.校验 ReferenceConfig 对象的配置项。
+     * 3.使用 ReferenceConfig 对象，生成 Dubbo URL 对象数组。
+     * 4.使用 Dubbo URL 对象，应用服务。
+     *
+     * @return
+     */
     public synchronized T get() {
         checkAndUpdateSubConfigs();
 
@@ -270,16 +259,19 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
     }
 
     private void init() {
+        // 已经初始化 直接返回
         if (initialized) {
             return;
         }
+        // mock stub local 模式校验
         checkStubAndLocal(interfaceClass);
         checkMock(interfaceClass);
         Map<String, String> map = new HashMap<String, String>();
 
         map.put(SIDE_KEY, CONSUMER_SIDE);
-
+        // 添加环境变量
         appendRuntimeParameters(map);
+        // 泛化接口的实现
         if (!isGeneric()) {
             String revision = Version.getVersion(interfaceClass, version);
             if (revision != null && revision.length() > 0) {
@@ -295,6 +287,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             }
         }
         map.put(INTERFACE_KEY, interfaceName);
+        // 添加属性 转义
         appendParameters(map, metrics);
         appendParameters(map, application);
         appendParameters(map, module);
@@ -317,7 +310,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 attributes.put(methodConfig.getName(), convertMethodConfig2AyncInfo(methodConfig));
             }
         }
-
+        // 以系统环境变量( DUBBO_IP_TO_REGISTRY ) 作为服务注册地址，参见 https://github.com/dubbo/dubbo-docker-sample 项目。
         String hostToRegistry = ConfigUtils.getSystemProperty(DUBBO_IP_TO_REGISTRY);
         if (StringUtils.isEmpty(hostToRegistry)) {
             hostToRegistry = NetUtils.getLocalHost();
@@ -325,11 +318,13 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             throw new IllegalArgumentException("Specified invalid registry ip from property:" + DUBBO_IP_TO_REGISTRY + ", value:" + hostToRegistry);
         }
         map.put(REGISTER_IP_KEY, hostToRegistry);
-
+        // 服务引用
         ref = createProxy(map);
 
         String serviceKey = URL.buildKey(interfaceName, group, version);
+        // 属性构建consumer对象，添加到本地 ConcurrentMap 缓存
         ApplicationModel.initConsumerModel(serviceKey, buildConsumerModel(serviceKey, attributes));
+        // 置位
         initialized = true;
     }
 
@@ -374,7 +369,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             } else { // assemble URL from register center's configuration
                 // if protocols not injvm checkRegistry
-                if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())){
+                if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())) {
                     checkRegistry();
                     List<URL> us = loadRegistries(false);
                     if (CollectionUtils.isNotEmpty(us)) {

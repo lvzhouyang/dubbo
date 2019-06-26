@@ -209,7 +209,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
     @SuppressWarnings("deprecation")
     protected void checkApplication() {
-        // for backward compatibility
+        // for backward compatibility 向后兼容
         createApplicationIfAbsent();
 
         if (!application.isValid()) {
@@ -219,7 +219,8 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
         ApplicationModel.setApplication(application.getName());
 
-        // backward compatibility
+        // backward compatibility 向后兼容
+        // 优雅停机超时时长
         String wait = ConfigUtils.getProperty(SHUTDOWN_WAIT_KEY);
         if (wait != null && wait.trim().length() > 0) {
             System.setProperty(SHUTDOWN_WAIT_KEY, wait.trim());
@@ -751,6 +752,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 configManager
                         .getApplication()
                         .orElseGet(() -> {
+                            //  读取环境变量和 properties 配置到 ApplicationConfig 对象。
                             ApplicationConfig applicationConfig = new ApplicationConfig();
                             applicationConfig.refresh();
                             return applicationConfig;
