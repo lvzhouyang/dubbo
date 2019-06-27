@@ -47,6 +47,8 @@ import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATT
 
 /**
  * ReferenceFactoryBean
+ * 继承 ReferenceConfig
+ *
  */
 public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean, ApplicationContextAware, InitializingBean, DisposableBean {
 
